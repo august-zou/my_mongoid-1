@@ -20,10 +20,7 @@ class Account
 end
 
 class ATM
-  attr_reader :account
-  def initialize(account)
-    @account = account
-  end
+  
 end
 
 module ATM::Commands
@@ -35,7 +32,7 @@ module ATM::Commands
 
   def deposit(amount)
     account.deposit(amount)
-    #amount
+    amount
   end
 end
 
@@ -59,7 +56,7 @@ module ATM::SMSNotification
   extend ActiveSupport::Concern
 
   def send_sms(msg)
-    puts "#fake send {mag}"
+    puts "fake send #{msg}"
   end
 end
 
@@ -78,33 +75,34 @@ end
 
 class ATM
   include ATM::Concerns
+
+  attr_reader :account
+  def initialize(account)
+    @account = account
+  end
+
   define_callbacks :command
 
 
-   def withdraw(amount)
+  def withdraw(amount)
     run_callbacks :command do
-      ATM::Commands.withdraw(amount)
+      super if valid_access?
     end
   end
 
   def deposit(amount)
     run_callbacks :command do
-      ATM::Commands.deposit(amount)
+      super if valid_access?
     end
   end
 
-  set_callback :command, :around do |object|
-    log("#{@account.balance}")
-  end
-
-  set_callback :command, :after do |object|
-    send_sms("#{@account.balance}")
-  end
-
   set_callback :command, :before do |object|
-    valid_access?
+    log("log: #{@account.balance}")
   end
 
+  set_callback :command, :after, if: -> { valid_access? } do |object|
+    log("log: #{@account.balance}")
+    send_sms("sms: #{@account.balance}")
+  end
+  
 end
-
-atm = ATM.new(Account.new(200))
